@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 using Bookify.Domain.Users;
@@ -19,7 +19,7 @@ internal sealed class CustomClaimsTransformation : IClaimsTransformation
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
         if (principal.Identity is not { IsAuthenticated: true } ||
-            principal.HasClaim(claim => claim.Type == ClaimTypes.Role) &
+            principal.HasClaim(claim => claim.Type == ClaimTypes.Role) &&
             principal.HasClaim(claim => claim.Type == JwtRegisteredClaimNames.Sub)
             )
         {

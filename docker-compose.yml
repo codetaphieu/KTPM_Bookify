@@ -1,4 +1,3 @@
-version: '3.4'
 
 services:
   bookify.api:
@@ -11,7 +10,7 @@ services:
       - bookify-db
 
   bookify-db:
-    image: postgres:latest
+    image: postgres:16
     container_name: Bookify.Db
     environment:
       - POSTGRES_DB=bookify
@@ -40,6 +39,7 @@ services:
     container_name: Bookify.Seq
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD=adminpassword
     ports:
       - 5341:5341
       - 8081:80
