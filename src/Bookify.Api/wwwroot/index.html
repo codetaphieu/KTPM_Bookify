@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookify Live UI</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Loader CSS */
+    .loader {
+      border: 3px solid var(--border);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen flex flex-col">
+
+  <!-- Desktop Header -->
+  <header class="border-b border-[var(--border)] bg-[var(--card)] sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
+      <!-- Logo -->
+      <div class="flex items-center gap-2 cursor-pointer">
+        <div class="w-10 h-10 rounded-xl bg-[var(--primary)] flex items-center justify-center text-[var(--primary-foreground)] text-xl font-bold shadow-sm">B</div>
+        <span class="text-2xl font-black tracking-tight text-[var(--primary)] hidden sm:block">Bookify</span>
+      </div>
+
+      <!-- Desktop Search Bar -->
+      <div class="hidden lg:flex items-center border border-[var(--border)] rounded-full shadow-sm hover:shadow-md transition-shadow bg-[var(--background)]">
+        <button class="px-6 py-3 text-sm font-medium border-r border-[var(--border)] hover:bg-[var(--accent)] rounded-l-full transition">Anywhere</button>
+        <button class="px-6 py-3 text-sm font-medium border-r border-[var(--border)] hover:bg-[var(--accent)] transition">Any week</button>
+        <div class="flex items-center pl-6 pr-2 py-2 hover:bg-[var(--accent)] rounded-r-full transition cursor-pointer">
+          <span class="text-sm text-[var(--muted-foreground)] mr-3">Add guests</span>
+          <div class="w-8 h-8 bg-[var(--primary)] rounded-full flex items-center justify-center text-[var(--primary-foreground)]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Actions -->
+      <div class="flex items-center gap-4">
+        <button class="hidden md:block text-sm font-semibold hover:bg-[var(--accent)] px-4 py-2 rounded-full transition">Bookify your home</button>
+        <button class="w-10 h-10 flex items-center justify-center hover:bg-[var(--accent)] rounded-full transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
+        </button>
+        <div class="flex items-center gap-3 border border-[var(--border)] p-2 pr-2 pl-4 rounded-full hover:shadow-md transition cursor-pointer bg-[var(--background)]">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          <div class="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white overflow-hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Apartments Live Data</h1>
+      <div id="status" class="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+        <div class="loader"></div> Loading from API...
+      </div>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="error-banner" class="hidden mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+      <strong class="font-bold">API Error: </strong>
+      <span class="block sm:inline" id="error-text"></span>
+    </div>
+
+    <!-- Grid Container -->
+    <div id="apartments-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <!-- Data will be injected here via JS -->
+    </div>
+
+  </main>
+
+  <script>
+    // Hardcoded API endpoint mapped to your local backend
+    // Searching arbitrary future dates to get availability
+    const API_URL = '/api/v1/apartments?startDate=2026-01-01&endDate=2026-12-31';
+
+    async function fetchApartments() {
+      const grid = document.getElementById('apartments-grid');
+      const status = document.getElementById('status');
+      const errorBanner = document.getElementById('error-banner');
+      const errorText = document.getElementById('error-text');
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'GET',
+          headers: {
+             'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+           throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        status.innerHTML = `<span class="w-3 h-3 bg-green-500 rounded-full inline-block"></span> Connected (${data.length} results)`;
+        
+        if (data.length === 0) {
+           grid.innerHTML = '<p class="col-span-full text-center text-gray-500 py-10">No apartments found for these dates.</p>';
+           return;
+        }
+
+        renderApartments(data);
+      } catch (error) {
+        console.error('Fetch error:', error);
+        status.innerHTML = `<span class="w-3 h-3 bg-red-500 rounded-full inline-block"></span> Disconnected`;
+        errorBanner.classList.remove('hidden');
+        errorText.innerText = error.message + " (Is the Bookify.Api running on port 5002 with CORS enabled?)";
+      }
+    }
+
+    function renderApartments(apartments) {
+      const grid = document.getElementById('apartments-grid');
+      grid.innerHTML = '';
+
+      // Gradients array to fake apartment images since API doesn't return image URLs
+      const gradients = [
+        'from-blue-400 to-indigo-600',
+        'from-emerald-400 to-teal-700',
+        'from-orange-400 to-amber-600',
+        'from-pink-400 to-purple-700',
+        'from-cyan-400 to-blue-600'
+      ];
+
+      apartments.forEach((apt, index) => {
+        const gradient = gradients[index % gradients.length];
+        
+        // Data mapping from backend fields (assuming standard Bookify DTO format)
+        // Adjust these fields based on actual ApartmentResponse properties!
+        const name = apt.name || 'Unknown Apartment';
+        const location = apt.address ? `${apt.address.city}, ${apt.address.country}` : 'Location unknown';
+        const price = parseFloat(apt.price).toFixed(2) || 'N/A';
+        const currency = apt.currency || '$';
+        
+        const cardHtml = `
+          <div class="group cursor-pointer flex flex-col">
+            <div class="relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-200 mb-3">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent z-10"></div>
+              <div class="w-full h-full bg-gradient-to-br ${gradient} group-hover:scale-105 transition-transform duration-500"></div>
+              
+              <!-- Heart icon -->
+              <button class="absolute top-3 right-3 z-20 text-white hover:text-red-500 hover:fill-red-500 transition">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+              </button>
+            </div>
+            
+            <div class="flex justify-between items-start">
+              <div class="overflow-hidden pr-2">
+                <h3 class="font-semibold text-[var(--foreground)] truncate" title="${name}">${name}</h3>
+                <p class="text-[var(--muted-foreground)] text-sm truncate">${location}</p>
+                <div class="mt-1 flex items-baseline gap-1">
+                  <span class="font-bold text-[var(--foreground)]">${price} ${currency}</span>
+                  <span class="text-[var(--muted-foreground)] text-sm">/ night</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1 text-sm font-medium flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" class="text-yellow-500"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                New
+              </div>
+            </div>
+          </div>
+        `;
+        grid.insertAdjacentHTML('beforeend', cardHtml);
+      });
+    }
+
+    // Run fetch on load
+    window.addEventListener('DOMContentLoaded', fetchApartments);
+  </script>
+</body>
+</html>

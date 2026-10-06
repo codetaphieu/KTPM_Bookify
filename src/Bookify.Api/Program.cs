@@ -20,6 +20,16 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
 
 WebApplication app = builder.Build();
@@ -45,11 +55,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseRequestContextLogging();
 
 app.UseSerilogRequestLogging();
 
 app.UseCustomExceptionHandler();
+
+app.UseCors();
 
 app.UseAuthentication();
 

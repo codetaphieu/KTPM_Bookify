@@ -1,4 +1,4 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
 using Bookify.Application.Apartments.SearchApartments;
 using Bookify.Domain.Abstractions;
 using MediatR;
@@ -20,6 +20,7 @@ public class ApartmentsController : ControllerBase
         _sender = sender;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> SearchApartments(
         DateOnly startDate,
