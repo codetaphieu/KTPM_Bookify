@@ -1,10 +1,13 @@
-﻿using Bookify.Application.Abstractions.Clock;
+﻿using System.Data;
+using Bookify.Application.Abstractions.Clock;
+using Bookify.Application.Abstractions.Data;
 using Bookify.Application.Abstractions.Messaging;
 using Bookify.Application.Exceptions;
 using Bookify.Domain.Abstractions;
 using Bookify.Domain.Apartments;
 using Bookify.Domain.Bookings;
 using Bookify.Domain.Users;
+using Dapper;
 
 namespace Bookify.Application.Bookings.ReserveBooking;
 
@@ -16,6 +19,7 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
     private readonly IUnitOfWork _unitOfWork;
     private readonly PricingService _pricingService;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly ISqlConnectionFactory _sqlConnectionFactory;
 
     public ReserveBookingCommandHandler(
         IUserRepository userRepository,
@@ -23,7 +27,8 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
         IBookingRepository bookingRepository,
         IUnitOfWork unitOfWork,
         PricingService pricingService,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        ISqlConnectionFactory sqlConnectionFactory)
     {
         _userRepository = userRepository;
         _apartmentRepository = apartmentRepository;
@@ -31,6 +36,7 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
         _unitOfWork = unitOfWork;
         _pricingService = pricingService;
         _dateTimeProvider = dateTimeProvider;
+        _sqlConnectionFactory = sqlConnectionFactory;
     }
 
     public async Task<Result<Guid>> Handle(ReserveBookingCommand request, CancellationToken cancellationToken)
@@ -68,6 +74,25 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
             _bookingRepository.Add(booking);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Đồng bộ trạng thái bận vào bảng Read Model (apartment_daily_availability)
+            const string updateAvailabilitySql = """
+                UPDATE apartment_daily_availability
+                SET is_available = FALSE,
+                    booking_id = @BookingId
+                WHERE apartment_id = @ApartmentId
+                  AND date >= @StartDate
+                  AND date < @EndDate;
+                """;
+
+            using IDbConnection connection = _sqlConnectionFactory.CreateConnection();
+            await connection.ExecuteAsync(updateAvailabilitySql, new
+            {
+                BookingId = booking.Id,
+                ApartmentId = request.ApartmentId,
+                StartDate = request.StartDate.ToDateTime(TimeOnly.MinValue),
+                EndDate = request.EndDate.ToDateTime(TimeOnly.MinValue)
+            });
 
             return booking.Id;
         }

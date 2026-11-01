@@ -2,7 +2,6 @@
 using Bookify.Application.Abstractions.Data;
 using Bookify.Application.Abstractions.Messaging;
 using Bookify.Domain.Abstractions;
-using Bookify.Domain.Bookings;
 using Dapper;
 
 namespace Bookify.Application.Apartments.SearchApartments;
@@ -10,13 +9,6 @@ namespace Bookify.Application.Apartments.SearchApartments;
 internal sealed class SearchApartmentsQueryHandler
     : IQueryHandler<SearchApartmentsQuery, IReadOnlyList<ApartmentResponse>>
 {
-    private static readonly int[] ActiveBookingStatuses =
-    {
-        (int)BookingStatus.Reserved,
-        (int)BookingStatus.Confirmed,
-        (int)BookingStatus.Completed
-    };
-
     private readonly ISqlConnectionFactory _sqlConnectionFactory;
 
     public SearchApartmentsQueryHandler(ISqlConnectionFactory sqlConnectionFactory)
@@ -24,7 +16,9 @@ internal sealed class SearchApartmentsQueryHandler
         _sqlConnectionFactory = sqlConnectionFactory;
     }
 
-    public async Task<Result<IReadOnlyList<ApartmentResponse>>> Handle(SearchApartmentsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<IReadOnlyList<ApartmentResponse>>> Handle(
+        SearchApartmentsQuery request, 
+        CancellationToken cancellationToken)
     {
         if (request.StartDate > request.EndDate)
         {
@@ -33,6 +27,7 @@ internal sealed class SearchApartmentsQueryHandler
 
         using IDbConnection connection = _sqlConnectionFactory.CreateConnection();
 
+        // SQL CẢI TIẾN: Chỉ check bảng phẳng Read Model (apartment_booked_dates)
         const string sql = """
             SELECT
                 a.id AS Id,
@@ -49,12 +44,11 @@ internal sealed class SearchApartmentsQueryHandler
             WHERE NOT EXISTS
             (
                 SELECT 1
-                FROM bookings AS b
+                FROM apartment_booked_dates AS abd
                 WHERE
-                    b.apartment_id = a.id AND
-                    b.duration_start <= @EndDate AND
-                    b.duration_end >= @StartDate AND
-                    b.status = ANY(@ActiveBookingStatuses)
+                    abd.apartment_id = a.id AND
+                    abd.date >= @StartDate AND
+                    abd.date <= @EndDate
             )
             """;
 
@@ -64,14 +58,12 @@ internal sealed class SearchApartmentsQueryHandler
                 (apartment, address) =>
                 {
                     apartment.Address = address;
-
                     return apartment;
                 },
                 new
                 {
-                    request.StartDate,
-                    request.EndDate,
-                    ActiveBookingStatuses
+                    StartDate = request.StartDate.ToDateTime(TimeOnly.MinValue),
+                    EndDate = request.EndDate.ToDateTime(TimeOnly.MinValue)
                 },
                 splitOn: "Country");
 

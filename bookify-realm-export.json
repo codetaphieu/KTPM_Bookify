@@ -1,0 +1,31 @@
+{
+  "realm": "bookify",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "bookify-admin-client",
+      "name": "Bookify Admin Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "UZDmbNxWmV4TlpaCRcju6pMRsyuV3er1",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "bookify-auth-client",
+      "name": "Bookify Auth Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "3E3yvXaYppoYBF3Ir6DgtEzADKKzSurZ",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    }
+  ]
+}

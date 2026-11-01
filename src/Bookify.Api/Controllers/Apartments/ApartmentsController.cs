@@ -19,7 +19,7 @@ public class ApartmentsController : ControllerBase
     {
         _sender = sender;
     }
-
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> SearchApartments(
         DateOnly startDate,

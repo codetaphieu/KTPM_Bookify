@@ -1,13 +1,13 @@
-
 services:
-  bookify.api:
-    image: ${DOCKER_REGISTRY-}bookifyapi
-    container_name: Bookify.Api
-    build:
-      context: .
-      dockerfile: src/Bookify.Api/Dockerfile
-    depends_on:
-      - bookify-db
+  # Đã comment (ẩn) phần API để chạy trực tiếp trên VS Code thay vì Docker
+  # bookify.api:
+  #   image: ${DOCKER_REGISTRY-}bookifyapi
+  #   container_name: Bookify.Api
+  #   build:
+  #     context: .
+  #     dockerfile: src/Bookify.Api/Dockerfile
+  #   depends_on:
+  #     - bookify-db
 
   bookify-db:
     image: postgres:16
@@ -19,7 +19,7 @@ services:
     volumes:
       - ./.containers/database:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - 5433:5432
 
   bookify-idp:
     image: quay.io/keycloak/keycloak:latest

@@ -16,28 +16,20 @@ internal sealed class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasKey(booking => booking.Id);
 
         builder.OwnsOne(booking => booking.PriceForPeriod, priceBuilder =>
-        {
             priceBuilder.Property(money => money.Currency)
-                .HasConversion(currency => currency.Code, code => Currency.FromCode(code));
-        });
+                .HasConversion(currency => currency.Code, code => Currency.FromCode(code)));
 
         builder.OwnsOne(booking => booking.CleaningFee, priceBuilder =>
-        {
             priceBuilder.Property(money => money.Currency)
-                .HasConversion(currency => currency.Code, code => Currency.FromCode(code));
-        });
+                .HasConversion(currency => currency.Code, code => Currency.FromCode(code)));
 
         builder.OwnsOne(booking => booking.AmenitiesUpCharge, priceBuilder =>
-        {
             priceBuilder.Property(money => money.Currency)
-                .HasConversion(currency => currency.Code, code => Currency.FromCode(code));
-        });
+                .HasConversion(currency => currency.Code, code => Currency.FromCode(code)));
 
         builder.OwnsOne(booking => booking.TotalPrice, priceBuilder =>
-        {
             priceBuilder.Property(money => money.Currency)
-                .HasConversion(currency => currency.Code, code => Currency.FromCode(code));
-        });
+                .HasConversion(currency => currency.Code, code => Currency.FromCode(code)));
 
         builder.OwnsOne(booking => booking.Duration);
 

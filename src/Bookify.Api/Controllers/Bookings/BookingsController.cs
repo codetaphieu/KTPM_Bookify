@@ -30,7 +30,7 @@ public class BookingsController : ControllerBase
 
         return result.IsSuccess ? Ok(result.Value) : NotFound();
     }
-
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> ReserveBooking(
         ReserveBookingRequest request,

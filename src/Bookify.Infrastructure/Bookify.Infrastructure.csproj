@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);IDE0270;IDE0053</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,8 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
-	<InternalsVisibleTo Include="Bookify.Application.IntegrationTests" />
-	<InternalsVisibleTo Include="Bookify.Api.FunctionalTests" />
+    <InternalsVisibleTo Include="Bookify.Application.IntegrationTests" />
+    <InternalsVisibleTo Include="Bookify.Api.FunctionalTests" />
   </ItemGroup>
 
 </Project>
