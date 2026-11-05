@@ -1,6 +1,7 @@
 ﻿using Bookify.Application.Abstractions.Clock;
+using Bookify.Application.Abstractions.Idempotency;
+using Bookify.Application.Abstractions.Queue;
 using Bookify.Application.Bookings.ReserveBooking;
-using Bookify.Application.Exceptions;
 using Bookify.Application.UnitTests.Apartments;
 using Bookify.Application.UnitTests.Users;
 using Bookify.Domain.Abstractions;
@@ -9,7 +10,6 @@ using Bookify.Domain.Bookings;
 using Bookify.Domain.Users;
 using FluentAssertions;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 
 namespace Bookify.Application.UnitTests.Bookings;
 
@@ -44,7 +44,9 @@ public class ReserveBookingTests
             _bookingRepositoryMock,
             _unitOfWorkMock,
             new PricingService(),
-            dateTimeProviderMock);
+            dateTimeProviderMock,
+            Substitute.For<IBookingQueue>(),
+            Substitute.For<IIdempotencyService>());
     }
 
     [Fact]
@@ -81,64 +83,6 @@ public class ReserveBookingTests
 
         // Assert
         result.Error.Should().Be(ApartmentErrors.NotFound);
-    }
-
-    [Fact]
-    public async Task Handle_Should_ReturnFailure_WhenApartmentIsBooked()
-    {
-        // Arrange
-        User user = UserData.Create();
-        Apartment apartment = ApartmentData.Create();
-        var duration = DateRange.Create(Command.StartDate, Command.EndDate);
-
-        _userRepositoryMock
-            .GetByIdAsync(Command.UserId, Arg.Any<CancellationToken>())
-            .Returns(user);
-
-        _apartmentRepositoryMock
-            .GetByIdAsync(Command.ApartmentId, Arg.Any<CancellationToken>())
-            .Returns(apartment);
-
-        _bookingRepositoryMock
-            .IsOverlappingAsync(apartment, duration, Arg.Any<CancellationToken>())
-            .Returns(true);
-
-        // Act
-        Result<Guid> result = await _handler.Handle(Command, default);
-
-        // Assert
-        result.Error.Should().Be(BookingErrors.Overlap);
-    }
-
-    [Fact]
-    public async Task Handle_Should_ReturnFailure_WhenUnitOfWorkThrows()
-    {
-        // Arrange
-        User user = UserData.Create();
-        Apartment apartment = ApartmentData.Create();
-        var duration = DateRange.Create(Command.StartDate, Command.EndDate);
-
-        _userRepositoryMock
-            .GetByIdAsync(Command.UserId, Arg.Any<CancellationToken>())
-            .Returns(user);
-
-        _apartmentRepositoryMock
-            .GetByIdAsync(Command.ApartmentId, Arg.Any<CancellationToken>())
-            .Returns(apartment);
-
-        _bookingRepositoryMock
-            .IsOverlappingAsync(apartment, duration, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        _unitOfWorkMock
-            .SaveChangesAsync()
-            .ThrowsAsync(new ConcurrencyException("Concurrency", new Exception()));
-
-        // Act
-        Result<Guid> result = await _handler.Handle(Command, default);
-
-        // Assert
-        result.Error.Should().Be(BookingErrors.Overlap);
     }
 
     [Fact]

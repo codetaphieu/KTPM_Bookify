@@ -34,13 +34,15 @@ public class BookingsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> ReserveBooking(
         ReserveBookingRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         CancellationToken cancellationToken)
     {
         var command = new ReserveBookingCommand(
             request.ApartmentId,
             request.UserId,
             request.StartDate,
-            request.EndDate);
+            request.EndDate,
+            idempotencyKey);
 
         Result<Guid> result = await _sender.Send(command, cancellationToken);
 
@@ -49,6 +51,7 @@ public class BookingsController : ControllerBase
             return BadRequest(result.Error);
         }
 
-        return CreatedAtAction(nameof(GetBooking), new { id = result.Value }, result.Value);
+        // The booking is processed asynchronously by the per-apartment queue; poll GetBooking for the result.
+        return AcceptedAtAction(nameof(GetBooking), new { id = result.Value }, new { BookingId = result.Value });
     }
 }

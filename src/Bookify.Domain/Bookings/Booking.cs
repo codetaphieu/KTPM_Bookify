@@ -89,6 +89,59 @@ public sealed class Booking : Entity
         return booking;
     }
 
+    public static Booking CreateProcessing(
+        Apartment apartment,
+        Guid userId,
+        DateRange duration,
+        DateTime utcNow,
+        PricingService pricingService)
+    {
+        PricingDetails pricingDetails = pricingService.CalculatePrice(apartment, duration);
+
+        return new Booking(
+            Guid.NewGuid(),
+            apartment.Id,
+            userId,
+            duration,
+            pricingDetails.PriceForPeriod,
+            pricingDetails.CleaningFee,
+            pricingDetails.AmenitiesUpCharge,
+            pricingDetails.TotalPrice,
+            BookingStatus.Processing,
+            utcNow);
+    }
+
+    public Result ReserveFromProcessing(Apartment apartment, DateTime utcNow)
+    {
+        if (Status != BookingStatus.Processing)
+        {
+            return Result.Failure(BookingErrors.NotProcessing);
+        }
+
+        Status = BookingStatus.Reserved;
+
+        RaiseDomainEvent(new BookingReservedDomainEvent(Id));
+
+        apartment.LastBookedOnUtc = utcNow;
+
+        return Result.Success();
+    }
+
+    public Result RejectFromProcessing(DateTime utcNow)
+    {
+        if (Status != BookingStatus.Processing)
+        {
+            return Result.Failure(BookingErrors.NotProcessing);
+        }
+
+        Status = BookingStatus.Rejected;
+        RejectedOnUtc = utcNow;
+
+        RaiseDomainEvent(new BookingRejectedDomainEvent(Id));
+
+        return Result.Success();
+    }
+
     public Result Confirm(DateTime utcNow)
     {
         if (Status != BookingStatus.Reserved)

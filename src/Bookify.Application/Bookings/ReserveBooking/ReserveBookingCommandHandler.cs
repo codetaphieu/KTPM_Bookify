@@ -1,5 +1,7 @@
 ﻿using Bookify.Application.Abstractions.Clock;
+using Bookify.Application.Abstractions.Idempotency;
 using Bookify.Application.Abstractions.Messaging;
+using Bookify.Application.Abstractions.Queue;
 using Bookify.Application.Exceptions;
 using Bookify.Domain.Abstractions;
 using Bookify.Domain.Apartments;
@@ -8,6 +10,8 @@ using Bookify.Domain.Users;
 
 namespace Bookify.Application.Bookings.ReserveBooking;
 
+// Fast path: validate, create the booking as Processing, enqueue it per apartment and return.
+// The overlap check happens later in ProcessBookingQueueCommandHandler, one apartment at a time.
 internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBookingCommand, Guid>
 {
     private readonly IUserRepository _userRepository;
@@ -16,6 +20,8 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
     private readonly IUnitOfWork _unitOfWork;
     private readonly PricingService _pricingService;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly IBookingQueue _bookingQueue;
+    private readonly IIdempotencyService _idempotencyService;
 
     public ReserveBookingCommandHandler(
         IUserRepository userRepository,
@@ -23,7 +29,9 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
         IBookingRepository bookingRepository,
         IUnitOfWork unitOfWork,
         PricingService pricingService,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        IBookingQueue bookingQueue,
+        IIdempotencyService idempotencyService)
     {
         _userRepository = userRepository;
         _apartmentRepository = apartmentRepository;
@@ -31,10 +39,27 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
         _unitOfWork = unitOfWork;
         _pricingService = pricingService;
         _dateTimeProvider = dateTimeProvider;
+        _bookingQueue = bookingQueue;
+        _idempotencyService = idempotencyService;
     }
 
     public async Task<Result<Guid>> Handle(ReserveBookingCommand request, CancellationToken cancellationToken)
     {
+        bool hasIdempotencyKey = !string.IsNullOrWhiteSpace(request.IdempotencyKey);
+
+        if (hasIdempotencyKey)
+        {
+            Guid? existingBookingId = await _idempotencyService.GetBookingIdAsync(
+                request.UserId,
+                request.IdempotencyKey!,
+                cancellationToken);
+
+            if (existingBookingId.HasValue)
+            {
+                return existingBookingId.Value;
+            }
+        }
+
         User? user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
 
         if (user is null)
@@ -51,29 +76,42 @@ internal sealed class ReserveBookingCommandHandler : ICommandHandler<ReserveBook
 
         var duration = DateRange.Create(request.StartDate, request.EndDate);
 
-        if (await _bookingRepository.IsOverlappingAsync(apartment, duration, cancellationToken))
+        var booking = Booking.CreateProcessing(
+            apartment,
+            user.Id,
+            duration,
+            _dateTimeProvider.UtcNow,
+            _pricingService);
+
+        _bookingRepository.Add(booking);
+
+        _bookingQueue.Enqueue(booking.Id, apartment.Id);
+
+        if (hasIdempotencyKey)
         {
-            return Result.Failure<Guid>(BookingErrors.Overlap);
+            _idempotencyService.Register(user.Id, request.IdempotencyKey!, booking.Id);
         }
 
         try
         {
-            var booking = Booking.Reserve(
-                apartment,
-                user.Id,
-                duration,
-                _dateTimeProvider.UtcNow,
-                _pricingService);
-
-            _bookingRepository.Add(booking);
-
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return booking.Id;
         }
-        catch (ConcurrencyException)
+        catch (UniqueConstraintViolationException) when (hasIdempotencyKey)
         {
-            return Result.Failure<Guid>(BookingErrors.Overlap);
+            // A concurrent request with the same key won the race: return its booking.
+            Guid? existingBookingId = await _idempotencyService.GetBookingIdAsync(
+                request.UserId,
+                request.IdempotencyKey!,
+                cancellationToken);
+
+            if (existingBookingId.HasValue)
+            {
+                return existingBookingId.Value;
+            }
+
+            throw;
         }
+
+        return booking.Id;
     }
 }

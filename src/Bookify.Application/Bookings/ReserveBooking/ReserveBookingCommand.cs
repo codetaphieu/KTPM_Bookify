@@ -6,4 +6,5 @@ public sealed record ReserveBookingCommand(
     Guid ApartmentId,
     Guid UserId,
     DateOnly StartDate,
-    DateOnly EndDate) : ICommand<Guid>;
+    DateOnly EndDate,
+    string? IdempotencyKey = null) : ICommand<Guid>;

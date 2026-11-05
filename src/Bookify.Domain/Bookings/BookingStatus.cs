@@ -2,6 +2,7 @@
 
 public enum BookingStatus
 {
+    Processing = 0,
     Reserved = 1,
     Confirmed = 2,
     Rejected = 3,

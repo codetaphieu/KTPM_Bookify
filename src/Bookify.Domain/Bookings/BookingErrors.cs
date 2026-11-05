@@ -23,4 +23,8 @@ public static class BookingErrors
     public static readonly Error AlreadyStarted = new(
         "Booking.AlreadyStarted",
         "The booking has already started");
+
+    public static readonly Error NotProcessing = new(
+        "Booking.NotProcessing",
+        "The booking is not being processed");
 }

@@ -11,5 +11,7 @@ internal class ReserveBookingCommandValidator : AbstractValidator<ReserveBooking
         RuleFor(c => c.ApartmentId).NotEmpty();
 
         RuleFor(c => c.StartDate).LessThan(c => c.EndDate);
+
+        RuleFor(c => c.IdempotencyKey).MaximumLength(200);
     }
 }

@@ -4,6 +4,7 @@ using Bookify.Domain.Abstractions;
 using Bookify.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Npgsql;
 
 namespace Bookify.Infrastructure;
 
@@ -44,6 +45,10 @@ public sealed class ApplicationDbContext : DbContext, IUnitOfWork
         catch (DbUpdateConcurrencyException ex)
         {
             throw new ConcurrencyException("Concurrency exception occurred.", ex);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new UniqueConstraintViolationException("Unique constraint violation occurred.", ex);
         }
     }
 
